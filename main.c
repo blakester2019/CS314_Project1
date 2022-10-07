@@ -16,6 +16,7 @@ typedef struct command
 // Prototypes
 void parse(char* retBuffer, command* cmd);
 void getCommand();
+int knownCommands(char* cmd);
 
 // ----- MAIN -----
 int main(int argc, char* argv[])
@@ -29,18 +30,15 @@ int main(int argc, char* argv[])
         // Parse Input
         parse(retBuffer, cmd);
 
-        // Check for exit
-        if (!strcmp(cmd->args[0], "exit"))
-        {
-            exit(-1);
-        }
-        
+        // Check for known commands
+        knownCommands(cmd->args[0]);
     }
     return 0;
 }
 
 //
 // parse: parses input and populates a "command" type
+// returns void
 //
 void parse(char* retBuffer, command* cmd)
 {
@@ -58,9 +56,46 @@ void parse(char* retBuffer, command* cmd)
 
 //
 // getCommand: takes user input
+// returns void
 //
 void getCommand()
 {
     printf("pish\%> ");
     getline(&retBuffer, &buffSize, stdin);
+}
+
+//
+// Checks if first argument is a Pish command
+// Returns 1 if a known command was executed and 0 if there was no known cmmand
+//
+int knownCommands(char* cmd)
+{
+    char* knownCommands[] = {"exit", "cd", "help"};
+    int size = 3;
+    int command = 0;
+    for (int i = 0; i < size; i++)
+    {
+        if (!strcmp(cmd, knownCommands[i]))
+            command = i + 1;
+    }
+
+    // No knwon command
+    if (command == 0)
+        return 0;
+    // exit
+    else if (command == 1)
+    {
+        exit(-1);
+    }
+    // cd
+    else if (command == 2)
+    {
+        printf("cd\n");
+    }
+    // help
+    else if (command == 3)
+    {
+        printf("help\n");
+    }
+    return 1;
 }
