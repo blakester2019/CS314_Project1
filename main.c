@@ -18,7 +18,7 @@ typedef struct command
 // Prototypes
 void parse(char* retBuffer, command* cmd);
 void getCommand();
-int knownCommands(char* cmd);
+int knownCommands(char** args);
 
 // ----- MAIN -----
 int main(int argc, char* argv[])
@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
         parse(retBuffer, cmd);
 
         // Check for known commands
-        knownCommands(cmd->args[0]);
+        knownCommands(cmd->args);
     }
     return 0;
 }
@@ -70,14 +70,14 @@ void getCommand()
 // Checks if first argument is a Pish command
 // Returns 1 if a known command was executed and 0 if there was no known cmmand
 //
-int knownCommands(char* cmd)
+int knownCommands(char** args)
 {
     char* knownCommands[] = {"exit", "cd", "help", "pwd"};
     int size = 4;
     int command = 0;
     for (int i = 0; i < size; i++)
     {
-        if (!strcmp(cmd, knownCommands[i]))
+        if (!strcmp(args[0], knownCommands[i]))
             command = i + 1;
     }
 
@@ -93,6 +93,7 @@ int knownCommands(char* cmd)
     else if (command == 2)
     {
         printf("cd\n");
+        if 
     }
     // help
     else if (command == 3)
