@@ -1,6 +1,8 @@
 #include "stdio.h"
 #include "stdlib.h"
-#include <string.h>
+#include "string.h"
+#include "unistd.h"
+#include "limits.h"
 
 // Global Variables
 char* retBuffer = NULL;
@@ -70,8 +72,8 @@ void getCommand()
 //
 int knownCommands(char* cmd)
 {
-    char* knownCommands[] = {"exit", "cd", "help"};
-    int size = 3;
+    char* knownCommands[] = {"exit", "cd", "help", "pwd"};
+    int size = 4;
     int command = 0;
     for (int i = 0; i < size; i++)
     {
@@ -96,6 +98,13 @@ int knownCommands(char* cmd)
     else if (command == 3)
     {
         printf("help\n");
+    }
+    // pwd
+    else if (command == 4)
+    {
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) != NULL)
+            printf("%s\n", cwd);
     }
     return 1;
 }
