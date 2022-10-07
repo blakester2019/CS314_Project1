@@ -2,33 +2,65 @@
 #include "stdlib.h"
 #include <string.h>
 
+// Global Variables
 char* retBuffer = NULL;
 size_t buffSize;
 
-typedef struct format
+// Data Structures
+typedef struct command
 {
     long int numItems;
-    char* argv[];
-} format;
+    char** args;
+} command;
 
-void parsing(char* retBuffer, format* junk);
+// Prototypes
+void parse(char* retBuffer, command* cmd);
+void getCommand();
 
-int main(int argc, char* argv)
+// ----- MAIN -----
+int main(int argc, char* argv[])
 {
-    getline(&retBuffer, &buffSize, stdin);
-    format* junk = malloc(sizeof(format));
-    parsing(retBuffer, junk);
-    printf("%s\n", junk->argv[0]);
+    while (1)
+    {
+        // Get User Input
+        getCommand();
+        command* cmd = malloc(sizeof(command));
+
+        // Parse Input
+        parse(retBuffer, cmd);
+
+        // Check for exit
+        if (!strcmp(cmd->args[0], "exit"))
+        {
+            exit(-1);
+        }
+        
+    }
     return 0;
 }
 
-void parsing(char* retBuffer, format* junk)
+//
+// parse: parses input and populates a "command" type
+//
+void parse(char* retBuffer, command* cmd)
 {
     char* token;
-    junk->numItems = (long)malloc(sizeof(int));
-    junk->numItems = 0;
+    cmd->numItems = (long)malloc(sizeof(int));
+    cmd->args = malloc(sizeof(char*) * cmd->numItems + 1);
+    cmd->numItems = 0;
     while((token = strsep(&retBuffer, " ")) != NULL)
     {
-        junk->argv[junk->numItems++] = token;
+        cmd->args[cmd->numItems++] = token;
     }
+    // Remove endline character from last argument
+    cmd->args[cmd->numItems - 1][strcspn(cmd->args[cmd->numItems - 1], "\n")] = 0;
+}
+
+//
+// getCommand: takes user input
+//
+void getCommand()
+{
+    printf("pish\%> ");
+    getline(&retBuffer, &buffSize, stdin);
 }
