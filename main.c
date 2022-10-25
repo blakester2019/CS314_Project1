@@ -3,22 +3,30 @@
 #include "string.h"
 #include "unistd.h"
 #include "limits.h"
+#include "sys/wait.h"
+
+typedef struct command
+{
+    char* cmd;
+    char* args[10];
+    char* separator;
+} command;
 
 // Global Variables
 char* retBuffer = NULL;
 size_t buffSize;
-
-// Data Structures
-typedef struct command
-{
-    long int numItems;
-    char** args;
-} command;
+command* cmd;
 
 // Prototypes
-void parse(char* retBuffer, command* cmd);
+void parseCommands(int size);
+int createCommandInstances(char* retBuffer);
 void getCommand();
 int knownCommands(char** args);
+void fillBlank(char* arr[], int size);
+void viewCommands(int size);
+void performPipe(int leftCommandIndex);
+int getSize(char* argv[]);
+char** formatArgs(char* args[], int max, int commandNum);
 
 // ----- MAIN -----
 int main(int argc, char* argv[])
@@ -27,33 +35,100 @@ int main(int argc, char* argv[])
     {
         // Get User Input
         getCommand();
-        command* cmd = malloc(sizeof(command));
 
-        // Parse Input
-        parse(retBuffer, cmd);
+        // Get Size of Commands
+        int size = createCommandInstances(retBuffer);
 
-        // Check for known commands
-        knownCommands(cmd->args);
+        // List Commands
+        //viewCommands(size);
+
+        /*
+        int size2 = getSize(cmd[0].args);
+        printf("Size: %d\n", size2);
+        */
+        performPipe(0);
     }
     return 0;
+}
+
+void parseCommands(int size)
+{
+    
 }
 
 //
 // parse: parses input and populates a "command" type
 // returns void
 //
-void parse(char* retBuffer, command* cmd)
+int createCommandInstances(char* retBuffer)
 {
+    char* backupBuffer[30];
     char* token;
-    cmd->numItems = (long)malloc(sizeof(int));
-    cmd->args = malloc(sizeof(char*) * cmd->numItems + 1);
-    cmd->numItems = 0;
+    int instancesToCreate = 1;
+
+    fillBlank(backupBuffer, 30);
+
+    // Find the number of instances to create
+    int i = 0;
     while((token = strsep(&retBuffer, " ")) != NULL)
     {
-        cmd->args[cmd->numItems++] = token;
+        if (
+            strcmp(token, "|") == 0 ||
+            strcmp(token, "<") == 0 ||
+            strcmp(token, ">") == 0
+        ) 
+        {
+            instancesToCreate++;
+        }
+        backupBuffer[i] = token;
+        i++;
     }
-    // Remove endline character from last argument
-    cmd->args[cmd->numItems - 1][strcspn(cmd->args[cmd->numItems - 1], "\n")] = 0;
+    // Malloc Space for Instances
+    cmd = malloc(sizeof(command) * instancesToCreate);
+    for(i = 0; i < instancesToCreate; i++)
+    {
+        cmd[i].cmd = (char*)malloc(sizeof(char*));
+        cmd[i].separator = (char*)malloc(sizeof(char*));
+        cmd[i].separator = "NULL";
+        fillBlank(cmd[i].args, 10);
+    }
+
+    // Creation Variables
+    int initialCommand = 1;
+    int currCommandIndex = 0;
+    int currArgIndex = 0;
+    int j = 0;
+    while (backupBuffer[j] != "NULL")
+    {
+        if (initialCommand == 1)
+        {
+            cmd[currCommandIndex].cmd = backupBuffer[j];
+            currArgIndex = 0;
+            initialCommand = 0;
+        }
+        else
+        {
+            if (
+            strcmp(backupBuffer[j], "|") == 0 ||
+            strcmp(backupBuffer[j], "<") == 0 ||
+            strcmp(backupBuffer[j], ">") == 0
+            ) 
+            {
+                cmd[currCommandIndex].separator = backupBuffer[j];
+                currCommandIndex++;
+                currArgIndex = 0;
+                initialCommand = 1;
+            }
+            else
+            {
+                cmd[currCommandIndex].args[currArgIndex] = backupBuffer[j];
+                currArgIndex++;
+            }
+        }
+        j++;
+    }
+    
+    return instancesToCreate;
 }
 
 //
@@ -80,7 +155,7 @@ int knownCommands(char** args)
         if (!strcmp(args[0], knownCommands[i]))
             command = i + 1;
     }
-
+    
     // No knwon command
     if (command == 0)
         return 0;
@@ -93,7 +168,6 @@ int knownCommands(char** args)
     else if (command == 2)
     {
         printf("cd\n");
-        if 
     }
     // help
     else if (command == 3)
@@ -107,5 +181,112 @@ int knownCommands(char** args)
         if (getcwd(cwd, sizeof(cwd)) != NULL)
             printf("%s\n", cwd);
     }
+    
     return 1;
+}
+
+void fillBlank(char* arr[], int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        arr[i] = "NULL";
+    }
+}
+
+void viewCommands(int size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        printf("----- COMMAND %d -----\n", i);
+        printf("cmd: %s\n", cmd[i].cmd);
+        int j = 0;
+        while (strcmp(cmd[i].args[j], "NULL") != 0)
+        {
+            printf("arg: %s\n", cmd[i].args[j]);
+            j++;
+        }
+        printf("separator: %s\n", cmd[i].separator);
+    }
+}
+
+int getSize(char* argv[])
+{
+    int i = -1;
+    while (strcmp(argv[i++], "NULL") != 0 && argv[i] != NULL) {}
+    return i;
+}
+
+char** formatArgs(char* args[], int max, int commandNum)
+{
+    int size = getSize(cmd[commandNum].args);
+    size++;
+    char** newArr = malloc(sizeof(char*) * size);
+    args[0][strcspn(args[0], "\n")] = 0;
+    for (int i = 1; i < size - 1; i++)
+    {
+        args[i - 1][strcspn(args[i - 1], "\n")] = 0;
+        newArr[i] = args[i - 1];
+    }
+    newArr[0] = cmd[commandNum].cmd;
+    newArr[size - 1] = NULL;
+
+    printf("--- NEW ARRAY ---\n");
+    for (int i = 0; i < size; i++)
+    {
+        printf("newArr[%d]: %s\n", i, newArr[i]);
+    }
+
+    return newArr;
+}
+
+void performPipe(int leftCommandIndex)
+{
+    int fd[2];
+
+    if (pipe(fd) == -1)
+    {
+        printf("Pipe no good\n");
+        return;
+    }
+
+    int pid1 = fork();
+    if (pid1 < 0)
+    {
+        printf("Fork no good\n");
+        return;
+    }
+
+    // Child Process
+    if (pid1 == 0)
+    {
+        dup2(fd[1], STDOUT_FILENO);
+        close(fd[0]);
+        close(fd[1]);
+        char** formattedArgs = formatArgs(cmd[leftCommandIndex].args, 10, leftCommandIndex);
+        execvp(cmd[leftCommandIndex].cmd, formattedArgs);
+    }
+
+    int pid2 = fork();
+    if (pid2 < 0)
+    {
+        printf("Fork no good\n");
+        return;
+    }
+
+    // Child Process
+    if (pid2 == 0)
+    {
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[0]);
+        close(fd[1]);
+        char** formattedArgs = formatArgs(cmd[leftCommandIndex + 1].args, 10, leftCommandIndex + 1);
+        execvp(cmd[leftCommandIndex + 1].cmd, formattedArgs);
+    }
+
+    close(fd[0]);
+    close(fd[1]);
+
+    waitpid(pid1, NULL, 0);
+    waitpid(pid2, NULL, 0);
+    return;
 }
