@@ -42,10 +42,14 @@ int main(int argc, char* argv[])
         // List Commands
         //viewCommands(size);
 
-        /*
+        
         int size2 = getSize(cmd[0].args);
-        printf("Size: %d\n", size2);
-        */
+        printf("Size2: %d\n", size2);
+        for (int i = 0; i < size2; i++)
+        {
+            printf("args2[%d]: %s\n", i, cmd[0].args[i]);
+        }
+        
         performPipe(0);
     }
     return 0;
@@ -213,34 +217,36 @@ int getSize(char* argv[])
 {
     int i = -1;
     while (strcmp(argv[i++], "NULL") != 0 && argv[i] != NULL) {}
-    return i;
+    return i - 1;
 }
 
+// FIX ME
 char** formatArgs(char* args[], int max, int commandNum)
 {
+    printf("INTO FORMAT\n");
     int size = getSize(cmd[commandNum].args);
-    size++;
-    char** newArr = malloc(sizeof(char*) * size);
-    args[0][strcspn(args[0], "\n")] = 0;
-    for (int i = 1; i < size - 1; i++)
+    printf("Size in format: %d\n", size);
+    args[size - 1][strcspn(args[size - 1], "\n")] = 0;
+    printf("This doesnt work\n");
+    char** newArr = malloc(sizeof(char*) * (size + 2));
+    int newSize = size + 1;
+
+    for (int i = 1; i < size; i++)
     {
-        args[i - 1][strcspn(args[i - 1], "\n")] = 0;
         newArr[i] = args[i - 1];
     }
-    newArr[0] = cmd[commandNum].cmd;
-    newArr[size - 1] = NULL;
 
-    printf("--- NEW ARRAY ---\n");
-    for (int i = 0; i < size; i++)
-    {
-        printf("newArr[%d]: %s\n", i, newArr[i]);
-    }
+    newArr[0] = cmd[commandNum].cmd;
+    newArr[newSize] = NULL;
+
+    printf("ABOUT TO RETURN FROM FORMAT\n");    
 
     return newArr;
 }
 
 void performPipe(int leftCommandIndex)
 {
+    printf("Performing pipe on: %d\n", leftCommandIndex);
     int fd[2];
 
     if (pipe(fd) == -1)
