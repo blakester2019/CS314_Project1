@@ -231,7 +231,7 @@ char** formatArgs(char* args[], int max, int commandNum)
     char** newArr = malloc(sizeof(char*) * (size + 2));
     int newSize = size + 1;
 
-    for (int i = 1; i < size; i++)
+    for (int i = 1; i <= size; i++)
     {
         newArr[i] = args[i - 1];
     }
