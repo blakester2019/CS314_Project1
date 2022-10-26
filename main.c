@@ -4,6 +4,7 @@
 #include "unistd.h"
 #include "limits.h"
 #include "sys/wait.h"
+#include "fcntl.h"
 
 typedef struct command
 {
@@ -25,6 +26,7 @@ int knownCommands(char** args);
 void fillBlank(char* arr[], int size);
 void viewCommands(int size);
 void performPipe(int leftCommandIndex);
+void outputRedirect(int leftCommandIndex);
 int getSize(char* argv[]);
 char** formatArgs(char* args[], int max, int commandNum);
 
@@ -42,15 +44,16 @@ int main(int argc, char* argv[])
         // List Commands
         //viewCommands(size);
 
-        
-        int size2 = getSize(cmd[0].args);
+        /*
+        int size2 = getSize(cmd[1].args);
         printf("Size2: %d\n", size2);
+        cmd[1].args[0][strcspn(cmd[1].args[0], "\n")] = 0;
         for (int i = 0; i < size2; i++)
         {
-            printf("args2[%d]: %s\n", i, cmd[0].args[i]);
+            printf("args2[%d]: %s\n", i, cmd[1].args[i]);
         }
-        
-        performPipe(0);
+        */
+        outputRedirect(0);
     }
     return 0;
 }
@@ -143,6 +146,8 @@ void getCommand()
 {
     printf("pish\%> ");
     getline(&retBuffer, &buffSize, stdin);
+    retBuffer[strlen(retBuffer)-1] = '\0';
+    fflush(stdin);
 }
 
 //
@@ -223,23 +228,29 @@ int getSize(char* argv[])
 // FIX ME
 char** formatArgs(char* args[], int max, int commandNum)
 {
-    printf("INTO FORMAT\n");
     int size = getSize(cmd[commandNum].args);
-    printf("Size in format: %d\n", size);
+
+    if (size == 0)
+    {
+        cmd[commandNum].cmd[strcspn(cmd[commandNum].cmd, "\n")] = 0;
+        char** newArr = malloc(sizeof(char*) * 2);
+        newArr[0] = cmd[commandNum].cmd;
+        newArr[1] = NULL;
+        return newArr;
+    }
+
     args[size - 1][strcspn(args[size - 1], "\n")] = 0;
-    printf("This doesnt work\n");
     char** newArr = malloc(sizeof(char*) * (size + 2));
-    int newSize = size + 1;
+    int newSize = size + 2;
 
     for (int i = 1; i <= size; i++)
     {
         newArr[i] = args[i - 1];
+        newArr[i][strcspn(newArr[i], "\n")] = 0;
     }
 
     newArr[0] = cmd[commandNum].cmd;
-    newArr[newSize] = NULL;
-
-    printf("ABOUT TO RETURN FROM FORMAT\n");    
+    newArr[newSize - 1] = NULL;
 
     return newArr;
 }
@@ -295,4 +306,27 @@ void performPipe(int leftCommandIndex)
     waitpid(pid1, NULL, 0);
     waitpid(pid2, NULL, 0);
     return;
+}
+
+void outputRedirect(int leftCommandIndex) {
+    int pid = fork();
+
+    if(pid < 0)
+    {
+        printf("fork no good\n");
+        exit(1);
+    }
+
+    if (pid == 0)
+    {
+        int fd = open(cmd[leftCommandIndex + 1].cmd,
+            O_WRONLY | O_TRUNC | O_CREAT,
+            0666);
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+        char** formattedArgs = formatArgs(cmd[leftCommandIndex].args, 10, leftCommandIndex);
+        execvp(cmd[leftCommandIndex].cmd, formattedArgs);
+    }
+
+    waitpid(pid, NULL, 0);
 }
