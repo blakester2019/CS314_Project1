@@ -1,0 +1,5 @@
+README.md
+main
+main.c
+main.dSYM
+newFile.txt

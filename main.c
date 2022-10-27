@@ -353,5 +353,4 @@ void inputRedirect(int leftCommandIndex) {
     execvp(cmd[leftCommandIndex].cmd, formattedArgs);
   }
   waitpid(pid, NULL, 0);
-  
 }
