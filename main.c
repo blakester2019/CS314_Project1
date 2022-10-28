@@ -42,10 +42,9 @@ void executeRC();
 // Sequential Execution Prototypes
 void seqPipe(char* args[]);
 void seqOutputRedirect(char* file);
-void seqOutputAppendRedirect(char* file);
 void seqInputRedirect(char* file);
 void executeSequentially(char* args[]);
-char * tokenize(char *input);
+char* sanitize(char *input);
 
 // Debugging and Testing
 void viewCommands(int size);
@@ -115,11 +114,11 @@ void executeCommands(int commandSize)
         return;
     }
 
-    // After this should handle sequencing
+    // More than 2 commands is handled by sequencing
     char* args[1024];
 
     char* sanitizedInput;
-    sanitizedInput = tokenize(inputBuffer);
+    sanitizedInput = sanitize(inputBuffer);
     
     
     if(sanitizedInput[strlen(sanitizedInput) - 1] == '&')
@@ -133,15 +132,15 @@ void executeCommands(int commandSize)
     int i = 0;
     while (arg)
     {
-        if (*arg == '<')
+        if (strcmp(arg, "<") == 0)
         {
             seqInputRedirect(strtok(NULL, " "));
         }
-        else if (*arg == '>')
+        else if (strcmp(arg, ">") == 0)
         {
             seqOutputRedirect(strtok(NULL, " "));
         }
-        else if (*arg == '|')
+        else if (strcmp(arg, "|") == 0)
         {
             args[i] = NULL;
             seqPipe(args);
@@ -428,8 +427,10 @@ int getSize(char* argv[])
 //
 char** formatArgs(char* args[], int max, int commandNum)
 {
+    // Get size of the arguments
     int size = getSize(cmd[commandNum].args);
 
+    // If no args, manually set the formatted args
     if (size == 0)
     {
         cmd[commandNum].cmd[strcspn(cmd[commandNum].cmd, "\n")] = 0;
@@ -439,16 +440,21 @@ char** formatArgs(char* args[], int max, int commandNum)
         return newArr;
     }
 
+    // Remove trailing endline
     args[size - 1][strcspn(args[size - 1], "\n")] = 0;
+
+    // Malloc Space for new array
     char** newArr = malloc(sizeof(char*) * (size + 2));
     int newSize = size + 2;
 
+    // Populate new array with args
     for (int i = 1; i <= size; i++)
     {
         newArr[i] = args[i - 1];
         newArr[i][strcspn(newArr[i], "\n")] = 0;
     }
 
+    // Set first and last element of the new array
     newArr[0] = cmd[commandNum].cmd;
     newArr[newSize - 1] = NULL;
 
@@ -463,12 +469,14 @@ void performPipe(int leftCommandIndex)
 {
     int fd[2];
 
+    // Error Handling
     if (pipe(fd) == -1)
     {
         printf("Pipe no good\n");
         return;
     }
 
+    // First Fork
     int pid1 = fork();
     if (pid1 < 0)
     {
@@ -486,6 +494,7 @@ void performPipe(int leftCommandIndex)
         execvp(cmd[leftCommandIndex].cmd, formattedArgs);
     }
 
+    // Second Fork
     int pid2 = fork();
     if (pid2 < 0)
     {
@@ -503,9 +512,11 @@ void performPipe(int leftCommandIndex)
         execvp(cmd[leftCommandIndex + 1].cmd, formattedArgs);
     }
 
+    // Close File Decriptors
     close(fd[0]);
     close(fd[1]);
 
+    // Wait for PIDs
     waitpid(pid1, NULL, 0);
     waitpid(pid2, NULL, 0);
     return;
@@ -518,12 +529,14 @@ void performPipe(int leftCommandIndex)
 void outputRedirect(int leftCommandIndex) {
     int pid = fork();
 
+    // Error Handling
     if(pid < 0)
     {
         printf("fork no good\n");
         exit(1);
     }
 
+    // Child Process
     if (pid == 0)
     {
         int fd = open(cmd[leftCommandIndex + 1].cmd,
@@ -535,6 +548,7 @@ void outputRedirect(int leftCommandIndex) {
         execvp(cmd[leftCommandIndex].cmd, formattedArgs);
     }
 
+    // Wait for Child Process
     waitpid(pid, NULL, 0);
 }
 
@@ -545,11 +559,13 @@ void outputRedirect(int leftCommandIndex) {
 void outputAppendRedirect(int leftCommandIndex) {
     int pid = fork();
 
+    // Error Handling
     if(pid < 0) {
         printf("fork no good\n");
         exit(1);
     }
 
+    // Child Process
     if (pid == 0) {
         int fd = open(cmd[leftCommandIndex + 1].cmd,
             O_WRONLY | O_APPEND | O_CREAT,
@@ -560,6 +576,7 @@ void outputAppendRedirect(int leftCommandIndex) {
         execvp(cmd[leftCommandIndex].cmd, formattedArgs);
     }
 
+    // Wait for PID
     waitpid(pid, NULL, 0);
 }
 
@@ -570,11 +587,13 @@ void outputAppendRedirect(int leftCommandIndex) {
 void inputRedirect(int leftCommandIndex) {
     int pid = fork();
 
+    // Error Handling
     if (pid < 0) {
         printf("fork no good\n");
         exit(1);
     }
 
+    // Child Process
     if (pid == 0) {
         int fd = open(cmd[leftCommandIndex + 1].cmd, O_RDONLY);
         dup2(fd, STDIN_FILENO);
@@ -583,46 +602,69 @@ void inputRedirect(int leftCommandIndex) {
         execvp(cmd[leftCommandIndex].cmd, formattedArgs);
     }
 
+    // Wait for PID
     waitpid(pid, NULL, 0);
 }
 
+//
+// seqPipe: Performs a pipe when sequencing is required
+// returns void
+//
 void seqPipe(char *args[])
 {
+    // Pipe File Descriptors
     int fd[2];
     pipe(fd);
 
+    // Close Second File Descriptor
     dup2(fd[1], 1);
     close(fd[1]);
 
-    printf("args = %s\n", *args);
-
+    // Run the Arguments Sequentially
     executeSequentially(args);
 
+    // Close The First File Descriptor
     dup2(fd[0], 0);
     close(fd[0]);
 }
 
+//
+// seqOutputRedirect: Performs an output redirect (>) when sequencing is required
+// returns void
+//
 void seqOutputRedirect(char* file)
 {
+    // Open Output File
     int output = open
     (
         file,
         O_WRONLY | O_TRUNC | O_CREAT,
         0600
     );
+
+    // Duplicate and Close Output
     dup2(output, 1);
     close(output);
 }
 
-void seqOutputAppendRedirect(char* file);
-
+//
+// seqOutputRedirect: Performs an input redirect (<) when sequencing is required
+// returns void
+//
 void seqInputRedirect(char* file)
 {
+    // Open Input File (READ ONLY)
     int input = open(file, O_RDONLY);
+
+    // Duplicate and Close the File
     dup2(input, 0);
     close(input);
 }
 
+//
+// executeSequentially: Handles execution when more than 2 commands exist
+// returns void
+//
 void executeSequentially(char *args[])
 {
     pid_t pid;
@@ -650,30 +692,34 @@ void executeSequentially(char *args[])
     }
 }
 
-
-char * tokenize(char *input)
+//
+// Sanitize: Handles execution when more than 2 commands exist
+// returns a string of the sanitized input
+//
+char* sanitize(char *input)
 {
     int i;
     int j = 0;
-    char *tokenized = (char *)malloc((2048) * sizeof(char));
 
-    // add spaces around special characters
+    // Create new sanitized string
+    char *sanitizedInput = (char *)malloc((2048) * sizeof(char));
+
+    // Loop through and format original input
     for (i = 0; i < strlen(input); i++) {
         if (input[i] != '>' && input[i] != '<' && input[i] != '|') {
-            tokenized[j++] = input[i];
+            sanitizedInput[j++] = input[i];
         } else {
-            tokenized[j++] = ' ';
-            tokenized[j++] = input[i];
-            tokenized[j++] = ' ';
+            sanitizedInput[j++] = ' ';
+            sanitizedInput[j++] = input[i];
+            sanitizedInput[j++] = ' ';
         }
     }
-    tokenized[j++] = '\0';
+    sanitizedInput[j++] = '\0';
 
-    // add null to the end
     char *end;
-    end = tokenized + strlen(tokenized) - 1;
+    end = sanitizedInput + strlen(sanitizedInput) - 1;
     end--;
     *(end + 1) = '\0';
 
-    return tokenized;
+    return sanitizedInput;
 }
