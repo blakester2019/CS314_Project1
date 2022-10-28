@@ -32,7 +32,8 @@ int getSize(char* argv[]);
 char** formatArgs(char* args[], int max, int commandNum);
 void executeCommands(int commandSize);
 void executeRC();
-int setEnv();
+int setEnv(int commandIndex);
+int unsetEnv();
 // void outputRedirect(int leftCommandIndex);
 // void inputRedirect(int leftCommandIndex);
 
@@ -272,8 +273,8 @@ void getCommand()
 //
 int knownCommands()
 {
-    char* knownCommands[] = {"exit", "cd", "help", "pwd", "setenv"};
-    int size = 5;
+    char* knownCommands[] = {"exit", "cd", "help", "pwd", "setenv", "unsetenv"};
+    int size = 6;
     int command = 0;
     for (int i = 0; i < size; i++)
     {
@@ -308,6 +309,9 @@ int knownCommands()
     }
     else if (command == 5) {
         int lmao = setEnv(0);
+    }
+    else if (command == 6) {
+        int lmao = unsetEnv();
     }
     
     return 1;
@@ -532,9 +536,8 @@ int setEnv(int commandIndex) {
         fgets(row, MAXCHAR, fp);
         printf("%s", row);
         while (fgets(row, MAXCHAR, fp) != NULL) {
-            printf("%s\n", row);
+            printf("%s", row);
         }
-        fclose(fp);
         return 0;
     }
     else {
@@ -545,4 +548,28 @@ int setEnv(int commandIndex) {
         fclose(fp);
         return 0;
     }
+}
+
+int unsetEnv() {
+    FILE* src;
+    FILE* temp;
+    char buffer[100];
+    src = fopen("pish.ev", "r");
+    temp = fopen("temp.tmp", "w+");
+    if(temp == NULL) {
+        printf("dawg the file aint open");
+    }
+    fgets(buffer, 100, src);
+    printf("%s", buffer);
+    // printf("%s", cmd[commandIndex].args[0]);
+    while(fgets(buffer, 100, src) != NULL) {
+        if((strstr(buffer, cmd[0].args[0])) == NULL) {
+            fputs(buffer, temp);
+        }
+    }   
+    fclose(src);
+    fclose(temp);
+    remove("pish.ev");
+    rename("temp.tmp", "pish.ev");
+    return 0;
 }
