@@ -16,23 +16,39 @@ typedef struct command
 
 // Global Variables
 char* retBuffer = NULL;
+char* inputBuffer = NULL;
+int waiting = 1;
+int running = 1;
 size_t buffSize;
 command* cmd;
 
-// Prototypes
+// Input Formatting Prototypes
 int createCommandInstances(char* retBuffer);
+char* filter(char* inputBuffer);
 void getCommand();
 int knownCommands();
 void fillBlank(char* arr[], int size);
-void viewCommands(int size);
+int getSize(char* argv[]);
+char** formatArgs(char* args[], int max, int commandNum);
+
+// Basic Execution Prototypes
 void performPipe(int leftCommandIndex);
 void outputRedirect(int leftCommandIndex);
 void outputAppendRedirect(int leftCommandIndex);
 void inputRedirect(int leftCommandIndex);
-int getSize(char* argv[]);
-char** formatArgs(char* args[], int max, int commandNum);
 void executeCommands(int commandSize);
 void executeRC();
+
+// Sequential Execution Prototypes
+void seqPipe(char* args[]);
+void seqOutputRedirect(char* file);
+void seqOutputAppendRedirect(char* file);
+void seqInputRedirect(char* file);
+void executeSequentially(char* args[]);
+char * tokenize(char *input);
+
+// Debugging and Testing
+void viewCommands(int size);
 
 // ----- MAIN -----
 int main(int argc, char* argv[])
@@ -100,7 +116,47 @@ void executeCommands(int commandSize)
     }
 
     // After this should handle sequencing
+    char* args[1024];
+
+    char* sanitizedInput;
+    sanitizedInput = tokenize(inputBuffer);
     
+    
+    if(sanitizedInput[strlen(sanitizedInput) - 1] == '&')
+    {
+        waiting = 0;
+        sanitizedInput[strlen(sanitizedInput) - 1] = '\0';
+    }
+    
+
+    char* arg = strtok(sanitizedInput, " ");
+    int i = 0;
+    while (arg)
+    {
+        if (*arg == '<')
+        {
+            seqInputRedirect(strtok(NULL, " "));
+        }
+        else if (*arg == '>')
+        {
+            seqOutputRedirect(strtok(NULL, " "));
+        }
+        else if (*arg == '|')
+        {
+            args[i] = NULL;
+            seqPipe(args);
+            i = 0;
+        }
+        else
+        {
+            args[i] = arg;
+            i++;
+        }
+        arg = strtok(NULL, " ");
+    }
+    args[i] = NULL;
+
+    executeSequentially(args);
 }
 
 //
@@ -167,6 +223,8 @@ int createCommandInstances(char* retBuffer)
     // If input is empty, create no instances
     if (strcmp(retBuffer, "") == 0)
         return 0;
+
+    // Copy retBuffer into inputBuffer
 
     char* backupBuffer[30]; // retBuffer becomes null after reading tokens. This is a backup of retBuffer
     char* token;
@@ -253,8 +311,13 @@ void getCommand()
     printf("pish\%> ");
     getline(&retBuffer, &buffSize, stdin);
 
+    // Move retBuffer to inputBuffer as backup
+    inputBuffer = malloc(sizeof(retBuffer) + 1024);
+    strcpy(inputBuffer, retBuffer);
+
     // Remove newline character at the end of the input
     retBuffer[strlen(retBuffer)-1] = '\0';
+
     fflush(stdin);
 }
 
@@ -521,3 +584,94 @@ void inputRedirect(int leftCommandIndex) {
     waitpid(pid, NULL, 0);
 }
 
+void seqPipe(char *args[])
+{
+    int fd[2];
+    pipe(fd);
+
+    dup2(fd[1], 1);
+    close(fd[1]);
+
+    printf("args = %s\n", *args);
+
+    executeSequentially(args);
+
+    dup2(fd[0], 0);
+    close(fd[0]);
+}
+
+void seqOutputRedirect(char* file)
+{
+    int output = open
+    (
+        file,
+        O_WRONLY | O_TRUNC | O_CREAT,
+        0600
+    );
+    dup2(output, 1);
+    close(output);
+}
+
+void seqOutputAppendRedirect(char* file);
+
+void seqInputRedirect(char* file)
+{
+    int input = open(file, O_RDONLY);
+    dup2(input, 0);
+    close(input);
+}
+
+void executeSequentially(char *args[])
+{
+    pid_t pid;
+    if (strcmp(args[0], "exit") != 0)
+        {
+            pid = fork();
+            if (pid < 0) { 
+                fprintf(stderr, "Fork Failed");
+            }
+            else if ( pid == 0) { /* child process */
+                execvp(args[0], args);
+            }
+            else { /* parent process */
+                if (waiting) {
+                    waitpid(pid, NULL, 0);
+                } else {
+                    waiting = 0;
+                }
+            }
+            seqInputRedirect("/dev/tty");
+            seqOutputRedirect("/dev/tty");
+        }
+    else {
+        running = 0;
+    }
+}
+
+
+char * tokenize(char *input)
+{
+    int i;
+    int j = 0;
+    char *tokenized = (char *)malloc((2048) * sizeof(char));
+
+    // add spaces around special characters
+    for (i = 0; i < strlen(input); i++) {
+        if (input[i] != '>' && input[i] != '<' && input[i] != '|') {
+            tokenized[j++] = input[i];
+        } else {
+            tokenized[j++] = ' ';
+            tokenized[j++] = input[i];
+            tokenized[j++] = ' ';
+        }
+    }
+    tokenized[j++] = '\0';
+
+    // add null to the end
+    char *end;
+    end = tokenized + strlen(tokenized) - 1;
+    end--;
+    *(end + 1) = '\0';
+
+    return tokenized;
+}
