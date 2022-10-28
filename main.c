@@ -197,12 +197,14 @@ void executeRC()
     // Execute pish.rc line by line
     while (fgets(buffer, buffSize, rc))
     {
+        inputBuffer = malloc(buffSize + 1024);
+        strcpy(inputBuffer, buffer);
         buffer[strlen(buffer)-1] = '\0';
 
         int commandSize = createCommandInstances(buffer);
         if (commandSize > 0)
         {
-            printf("Executing: %s\n", buffer);
+            printf("Executing: %s\n", inputBuffer);
             executeCommands(commandSize);
         }
     }
