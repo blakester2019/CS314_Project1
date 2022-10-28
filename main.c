@@ -39,7 +39,6 @@ int setEnv();
 // ----- MAIN -----
 int main(int argc, char* argv[])
 {
-    int lmao = setEnv();
     // Start by executing commands from RC file
     // executeRC();
 
@@ -273,8 +272,8 @@ void getCommand()
 //
 int knownCommands()
 {
-    char* knownCommands[] = {"exit", "cd", "help", "pwd"};
-    int size = 4;
+    char* knownCommands[] = {"exit", "cd", "help", "pwd", "setenv"};
+    int size = 5;
     int command = 0;
     for (int i = 0; i < size; i++)
     {
@@ -306,6 +305,9 @@ int knownCommands()
         char cwd[PATH_MAX];
         if (getcwd(cwd, sizeof(cwd)) != NULL)
             printf("%s\n", cwd);
+    }
+    else if (command == 5) {
+        int lmao = setEnv(0);
     }
     
     return 1;
@@ -519,20 +521,28 @@ void inputRedirect(int leftCommandIndex) {
 }
 
 int setEnv(int commandIndex) {
-    int MAXCHAR = 25;
+    int MAXCHAR = 150;
     FILE *fp;
     char row[MAXCHAR];
     char *token;
 
-    fp = fopen("pish.ev","r");
+    
     if(cmd[commandIndex].args[0] == "NULL") {
-        while (fgets(row, MAXCHAR, fp)) {
-            printf("Command: %s", row);
+        fp = fopen("pish.ev","r");
+        fgets(row, MAXCHAR, fp);
+        printf("%s", row);
+        while (fgets(row, MAXCHAR, fp) != NULL) {
+            printf("%s\n", row);
         }
+        fclose(fp);
         return 0;
     }
     else {
-        fwrite(cmd[commandIndex].args[0], sizeof(cmd[commandIndex].args[0]), 1, fp);
+        fp = fopen("pish.ev","a+");
+        char * lol = "\n";
+        fwrite(cmd[commandIndex].args[0], strlen(cmd[commandIndex].args[0]), 1, fp);
+        fwrite(lol, strlen(lol), 1, fp);
+        fclose(fp);
         return 0;
     }
 }
