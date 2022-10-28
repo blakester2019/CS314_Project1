@@ -113,8 +113,24 @@ void executeRC()
     int buffSize = 255;
     char buffer[buffSize];
 
+    // Store Current Directory
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL)
+        printf("%s\n", cwd);
+
+    // CD into user home
+    uid_t uid = getuid();
+    struct passwd* user = getpwuid(uid);
+    if (!user)
+    {
+        printf("No user found\n");
+        return 1;
+    }
+    chdir(user->pw_dir);
+
     // Open the file
-    rc = fopen("pish.rc", "r");
+    rc = fopen("pishrc", "r");
+
 
     // Check if pish.rc was opened
     if (rc == NULL)
@@ -138,6 +154,9 @@ void executeRC()
 
     // Close pish.rc
     fclose(rc);
+
+    // Return To Original Directory
+    chdir(cwd);
 }
 
 //
