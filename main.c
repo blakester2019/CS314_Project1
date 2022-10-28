@@ -441,7 +441,7 @@ void performPipe(int leftCommandIndex)
     int pid2 = fork();
     if (pid2 < 0)
     {
-        printf("Fork no good\n");
+        printf("Fork no gooOd\n");
         return;
     }
 
