@@ -124,13 +124,12 @@ void executeRC()
     if (!user)
     {
         printf("No user found\n");
-        return 1;
+        return;
     }
     chdir(user->pw_dir);
 
     // Open the file
     rc = fopen("pishrc", "r");
-
 
     // Check if pish.rc was opened
     if (rc == NULL)
@@ -513,7 +512,7 @@ void inputRedirect(int leftCommandIndex) {
 
     if (pid == 0) {
         int fd = open(cmd[leftCommandIndex + 1].cmd, O_RDONLY);
-        dup2(fd, STDOUT_FILENO);
+        dup2(fd, STDIN_FILENO);
         close(fd);
         char** formattedArgs = formatArgs(cmd[leftCommandIndex].args, 10, leftCommandIndex);
         execvp(cmd[leftCommandIndex].cmd, formattedArgs);
