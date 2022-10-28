@@ -56,7 +56,6 @@ int main(int argc, char* argv[])
         {
             executeCommands(commandSize);
         }
-
         // outputAppendRedirect(0);
     }
     return 0;
@@ -242,6 +241,16 @@ int createCommandInstances(char* retBuffer)
             else
             {
                 cmd[currCommandIndex].args[currArgIndex] = backupBuffer[j];
+                FILE* fp = fopen("pish.ev", "r");
+                char bullShitbuffer[100];
+                while(fgets(bullShitbuffer, 100, fp) != NULL) {
+                    if(strstr(bullShitbuffer, cmd[currCommandIndex].args[currArgIndex])) {
+                        char* token1 = strtok(bullShitbuffer, "=");
+                        char* token = strtok(NULL, "\0");
+                        cmd[currCommandIndex].args[currArgIndex] = token;
+                    }
+                }
+                fclose(fp);
                 currArgIndex++;
             }
         }
@@ -530,7 +539,7 @@ int setEnv(int commandIndex) {
     char row[MAXCHAR];
     char *token;
 
-    
+    int lmao = unsetEnv();
     if(cmd[commandIndex].args[0] == "NULL") {
         fp = fopen("pish.ev","r");
         fgets(row, MAXCHAR, fp);
@@ -559,7 +568,7 @@ int unsetEnv() {
     if(temp == NULL) {
         printf("dawg the file aint open");
     }
-    fgets(buffer, 100, src);
+    //fgets(buffer, 100, src);
     printf("%s", buffer);
     // printf("%s", cmd[commandIndex].args[0]);
     while(fgets(buffer, 100, src) != NULL) {
