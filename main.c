@@ -2,6 +2,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "unistd.h"
+#include "pwd.h"
 #include "limits.h"
 #include "sys/wait.h"
 #include "fcntl.h"
@@ -52,8 +53,6 @@ int main(int argc, char* argv[])
         {
             executeCommands(commandSize);
         }
-
-        // outputAppendRedirect(0);
     }
     return 0;
 }
@@ -68,7 +67,10 @@ void executeCommands(int commandSize)
     if (commandSize == 1)
     {
         // Check Known Commands
-        knownCommands();
+        int found = knownCommands();
+
+        if (found)
+            return;
 
         int pid = fork();
         if (pid == 0)
@@ -264,7 +266,19 @@ int knownCommands()
     // cd
     else if (command == 2)
     {
-        printf("cd\n");
+        if (cmd[0].args[0] == "NULL")
+        {
+            uid_t uid = getuid();
+            struct passwd* user = getpwuid(uid);
+            if (!user)
+            {
+                printf("No user found\n");
+                return 1;
+            }
+            chdir(user->pw_dir);
+        }
+        else
+            chdir(cmd[0].args[0]);
     }
     // help
     else if (command == 3)
