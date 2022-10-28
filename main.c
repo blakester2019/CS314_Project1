@@ -38,6 +38,8 @@ void outputAppendRedirect(int leftCommandIndex);
 void inputRedirect(int leftCommandIndex);
 void executeCommands(int commandSize);
 void executeRC();
+int setEnv(int commandIndex);
+int unsetEnv();
 
 // Sequential Execution Prototypes
 void seqPipe(char* args[]);
@@ -54,6 +56,15 @@ int main(int argc, char* argv[])
 {
     // Start by executing commands from RC file
     executeRC();
+
+    FILE* env = fopen("pish.ev","wrb+");
+
+    if (env == NULL)
+    {
+        printf("Created pish.ev\n");
+    }
+
+    fclose(env);
 
     // Begin taking commands from user
     while (1)
@@ -292,6 +303,26 @@ int createCommandInstances(char* retBuffer)
             else
             {
                 cmd[currCommandIndex].args[currArgIndex] = backupBuffer[j];
+                FILE* fp = fopen("pish.ev", "r");
+
+                if (fp)
+                {
+                    char envBuffer[100];
+                    if(cmd[currCommandIndex].args[currArgIndex][0] == '$') {
+                        char* newEnv = cmd[currCommandIndex].args[currArgIndex];
+                        cmd[currCommandIndex].args[currArgIndex] = newEnv + 1;
+
+                        while(fgets(envBuffer, 100, fp) != NULL) {
+                        if(strstr(envBuffer, cmd[currCommandIndex].args[currArgIndex])) {
+                            char* token1 = strtok(envBuffer, "=");
+                            char* token = strtok(NULL, "\0");
+                            cmd[currCommandIndex].args[currArgIndex] = token;
+                        }
+                    }
+                    }  
+                    fclose(fp);
+                }
+            
                 currArgIndex++;
             }
         }
@@ -328,8 +359,8 @@ void getCommand()
 //
 int knownCommands()
 {
-    char* knownCommands[] = {"exit", "cd", "help", "pwd"};
-    int size = 4;
+    char* knownCommands[] = {"exit", "cd", "help", "pwd", "setenv", "unsetenv"};
+    int size = 6;
     int command = 0;
     for (int i = 0; i < size; i++)
     {
@@ -337,12 +368,13 @@ int knownCommands()
             command = i + 1;
     }
     
-    // No knwon command
+    // No known command
     if (command == 0)
         return 0;
     // exit
     else if (command == 1)
     {
+        printf("Exiting pish...\n");
         exit(-1);
     }
     // cd
@@ -365,7 +397,7 @@ int knownCommands()
     // help
     else if (command == 3)
     {
-        printf("help\n");
+        printf("If it's not in the READEME, good luck\n");
     }
     // pwd
     else if (command == 4)
@@ -373,6 +405,14 @@ int knownCommands()
         char cwd[PATH_MAX];
         if (getcwd(cwd, sizeof(cwd)) != NULL)
             printf("%s\n", cwd);
+    }
+    else if (command == 5)
+    {
+        int res = setEnv(0);
+    }
+    else if (command == 6)
+    {
+        int res = unsetEnv();
     }
     
     return 1;
@@ -668,7 +708,7 @@ void seqInputRedirect(char* file)
 void executeSequentially(char *args[])
 {
     pid_t pid;
-    if (strcmp(args[0], "exit") != 0)
+    if (strcmp(args[0], "exit\n") != 0)
         {
             pid = fork();
             if (pid < 0) { 
@@ -722,4 +762,74 @@ char* sanitize(char *input)
     *(end + 1) = '\0';
 
     return sanitizedInput;
+}
+
+int setEnv(int commandIndex) {
+    int MAXCHAR = 150;
+    FILE *fp;
+    char row[MAXCHAR];
+    char *token;
+
+    int res = unsetEnv();
+    if(cmd[commandIndex].args[0] == "NULL") {
+        fp = fopen("pish.ev","rb+");
+
+        if (fp == NULL)
+        {
+            return 1;
+        }
+
+        fgets(row, MAXCHAR, fp);
+        printf("%s", row);
+        while (fgets(row, MAXCHAR, fp) != NULL) {
+            printf("%s", row);
+        }
+
+        return 0;
+    }
+    else {
+        fp = fopen("pish.ev","a+");
+
+        if (fp == NULL)
+        {
+            return 1;
+        }
+
+        char * newLine = "\n";
+        fwrite(cmd[commandIndex].args[0], strlen(cmd[commandIndex].args[0]), 1, fp);
+        fwrite(newLine, strlen(newLine), 1, fp);
+        fclose(fp);
+        return 0;
+    }
+}
+
+int unsetEnv() {
+    FILE* src;
+    FILE* temp;
+    char buffer[100];
+    src = fopen("pish.ev", "rb+");
+
+    if (src == NULL)
+    {
+        return 1;
+    }
+
+    temp = fopen("temp.tmp", "w+");
+    if(temp == NULL)
+    {
+        printf("Temp file could not be opened\n");
+        return 1;
+    }
+
+    while(fgets(buffer, 100, src) != NULL) {
+        if((strstr(buffer, cmd[0].args[0])) == NULL) {
+            fputs(buffer, temp);
+        }
+    } 
+
+    fclose(src);
+    fclose(temp);
+    remove("pish.ev");
+    rename("temp.tmp", "pish.ev");
+    return 0;
 }
