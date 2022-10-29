@@ -30,6 +30,7 @@ int knownCommands();
 void fillBlank(char* arr[], int size);
 int getSize(char* argv[]);
 char** formatArgs(char* args[], int max, int commandNum);
+void signalHandler(int num);
 
 // Basic Execution Prototypes
 void performPipe(int leftCommandIndex);
@@ -200,7 +201,8 @@ void executeRC()
     // Check if pish.rc was opened
     if (rc == NULL)
     {
-        printf("pish.rc was not found\n");
+        printf("pishrc was not found\n");
+        chdir(cwd);
         return;
     }
 
